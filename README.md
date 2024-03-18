@@ -23,3 +23,5 @@ This is a chess engine project I used to learn c++ programming and search algori
 
 ## To do:
 - Fix some bugs related to mate search
+- Fix some bugs in the evaluation as the engine misses some important tactics sometimes
+
