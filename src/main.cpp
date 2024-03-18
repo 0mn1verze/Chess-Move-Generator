@@ -3,6 +3,7 @@
 
 #include "bitboard.hpp"
 #include "defs.hpp"
+#include "eval.hpp"
 #include "movegen.hpp"
 #include "movepicker.hpp"
 #include "perft.hpp"

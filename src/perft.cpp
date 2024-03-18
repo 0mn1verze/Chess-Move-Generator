@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "defs.hpp"
-#include "misc.hpp"
+#include "utils.hpp"
 #include "movegen.hpp"
 #include "position.hpp"
 

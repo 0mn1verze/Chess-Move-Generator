@@ -74,12 +74,12 @@ void printBitboard(Bitboard bb)
 |==========================================|
 \******************************************/
 
-static int rankDist(Square sq1, Square sq2)
+int rankDist(Square sq1, Square sq2)
 {
     return std::abs(rankOf(sq1) - rankOf(sq2));
 }
 
-static int fileDist(Square sq1, Square sq2)
+int fileDist(Square sq1, Square sq2)
 {
     return std::abs(fileOf(sq1) - fileOf(sq2));
 }

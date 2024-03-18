@@ -26,7 +26,7 @@ using Depth = std::int8_t;
 
 constexpr Depth MAX_DEPTH = 64;
 constexpr int MAX_MOVES = 256;
-constexpr Time MOVE_OVERHEAD = 300;
+constexpr Time MOVE_OVERHEAD = 1000;
 constexpr Value VAL_INFINITE = 50000;
 constexpr Value VAL_MATE = 49000;
 constexpr Value VAL_MATE_BOUND = 48000;
@@ -112,6 +112,13 @@ enum Castling {
     CASTLING_N = 16
 };
 
+enum ScaleFactor {
+  SCALE_FACTOR_DRAW    = 0,
+  SCALE_FACTOR_NORMAL  = 64,
+  SCALE_FACTOR_MAX     = 128,
+  SCALE_FACTOR_NONE    = 255
+};
+
 // clang-format on
 
 /******************************************\
@@ -189,6 +196,8 @@ struct Score {
 
 constexpr Score _S(Value mg, Value eg) { return Score(mg, eg); }
 
+constexpr Score SCORE_ZERO = _S(0, 0);
+
 // Operators for Score
 constexpr Score operator+(Score s1, Score s2) {
   return Score(s1.mg + s2.mg, s1.eg + s2.eg);
@@ -199,7 +208,10 @@ constexpr Score operator-(Score s1, Score s2) {
 constexpr Score operator*(Score s1, int d) {
   return Score(s1.mg * d, s1.eg * d);
 }
-constexpr Score &operator-(Score &s1) { return s1 = _S(-s1.mg, -s1.eg); }
+constexpr Score operator/(Score s1, int d) {
+  return Score(s1.mg / d, s1.eg / d);
+}
+constexpr Score operator-(Score &s1) { return _S(-s1.mg, -s1.eg); }
 constexpr Score &operator+=(Score &s1, Score s2) { return s1 = s1 + s2; }
 constexpr Score &operator-=(Score &s1, Score s2) { return s1 = s1 - s2; }
 constexpr bool operator==(Score s1, Score s2) {
@@ -237,6 +249,10 @@ constexpr Rank &operator--(Rank &d) { return d = Rank(d - 1); }
 // Add direction to square
 constexpr Square operator+(Square sq, Direction d) {
   return Square(int(sq) + int(d));
+}
+// Add direction to square
+constexpr Square operator-(Square sq, Direction d) {
+  return Square(int(sq) - int(d));
 }
 // Add direction to square
 constexpr Square &operator+=(Square &sq, Direction d) { return sq = sq + d; }
@@ -282,6 +298,11 @@ inline std::ostream &operator<<(std::ostream &os, std::int8_t c) {
   return os << static_cast<int>(c);
 }
 
+// Change the output of std::uint8_t
+inline std::ostream &operator<<(std::ostream &os, std::uint8_t c) {
+  return os << static_cast<int>(c);
+}
+
 /******************************************\
 |==========================================|
 |             Type conversions             |
@@ -312,6 +333,8 @@ constexpr bool isSquare(Square sq) { return sq >= A1 && sq <= H8; }
 
 inline bool isShift(Square sq1, Square sq2) { return dist[sq1][sq2] <= 3; }
 
+inline int squareDist(Square sq1, Square sq2) { return dist[sq1][sq2]; }
+
 /******************************************\
 |==========================================|
 |              Board Helpers               |
@@ -320,8 +343,16 @@ inline bool isShift(Square sq1, Square sq2) { return dist[sq1][sq2] <= 3; }
 
 constexpr Square flipRank(Square sq) { return Square(int(sq) ^ int(A8)); }
 
-constexpr Square relativeRank(Colour c, Square sq) {
-  return (c == WHITE) ? sq : flipRank(sq);
+constexpr File fileFromEdge(File f) { return std::min(f, File(FILE_H - f)); }
+
+constexpr Rank relativeRank(Colour c, Rank r) { return Rank(r ^ (c * 7)); }
+
+constexpr Rank relativeRank(Colour c, Square sq) {
+  return relativeRank(c, rankOf(sq));
+}
+
+constexpr Square relativeSquare(Colour c, Square sq) {
+  return Square(sq ^ (c * 56));
 }
 
 constexpr Score relativeScore(Colour c, Score s) {
@@ -329,5 +360,11 @@ constexpr Score relativeScore(Colour c, Score s) {
 }
 
 constexpr Rank EPRank(Colour side) { return (side == WHITE) ? RANK_4 : RANK_5; }
+
+constexpr Direction pawnPush(Colour side) { return (side == WHITE) ? N : S; }
+
+constexpr Direction pawnLeft(Colour side) { return (side == WHITE) ? NW : SE; }
+
+constexpr Direction pawnRight(Colour side) { return (side == WHITE) ? NE : SW; }
 
 #endif // DEFS_HPP

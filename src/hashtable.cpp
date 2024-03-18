@@ -25,7 +25,10 @@ static Value TTValueTo(Value value, int ply) {
 }
 
 // Update table generation
-void TTUpdate() { hashTable.generation += TT_MASK_BOUND + 1; }
+void TTUpdate() {
+  hashTable.generation += TT_MASK_BOUND + 1;
+  std::cout << hashTable.generation << std::endl;
+}
 
 // Prefetch the hash entry to make memory access quicker
 void TTPrefetch(const Key key) {
@@ -106,7 +109,7 @@ void TTStore(const Key key, int ply, Move move, Value value, Value eval,
         ((259 + hashTable.generation - slots[i].generation) & TT_MASK_AGE);
     std::uint8_t repAge =
         replace->depth -
-        ((259 + hashTable.generation - slots[i].generation) & TT_MASK_AGE);
+        ((259 + hashTable.generation - replace->generation) & TT_MASK_AGE);
 
     if (repAge >= slotAge)
       replace = &slots[i];
@@ -119,7 +122,7 @@ void TTStore(const Key key, int ply, Move move, Value value, Value eval,
     return;
   }
 
-  if (move || key != replace->posKey) {
+  if (move != Move::none() || key != replace->posKey) {
     replace->move = move;
   }
 

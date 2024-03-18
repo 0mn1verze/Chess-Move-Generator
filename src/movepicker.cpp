@@ -1,11 +1,12 @@
 #include <iostream>
 
 #include "defs.hpp"
+#include "eval.hpp"
 #include "movegen.hpp"
 #include "movepicker.hpp"
 #include "position.hpp"
-#include "psqt.hpp"
 #include "search.hpp"
+
 
 MovePicker::MovePicker(Position &pos, SearchStats &ss, const int ply,
                        const Depth depth, const Move pvMove)
@@ -42,17 +43,17 @@ template <GenType gt> void MovePicker::scoreMoves() {
 
     if constexpr (gt == QUIETS) {
       if (m == ss.killer[depth][0])
-        m.score = 30000;
+        m.score = 9000;
       else if (m == ss.killer[depth][1])
-        m.score = 25000;
+        m.score = 8000;
       else {
         Piece piece = pos.getPiece(from);
         if (ss.history[piece][to] > 0) {
-          m.score =
-              1000 * ss.history[piece][to] / (ss.butterfly[piece][to] + 1);
-        } else
-          m.score = psqTable[pos.getPieceType(from)][from].mg +
-                    psqTable[pos.getPieceType(to)][to].mg;
+          m.score = ss.history[piece][to];
+          // } else
+          //   m.score = psqTable[pos.getPieceType(from)][from].mg +
+          //             psqTable[pos.getPieceType(to)][to].mg;
+        }
       }
     }
   }

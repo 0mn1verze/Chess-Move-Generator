@@ -13,21 +13,24 @@ set(SOURCES src/bitboard.cpp
             src/movepicker.cpp
             src/eval.cpp
             src/hashtable.cpp
+            src/pawns.cpp
+            src/psqt.cpp
             src/main.cpp)
 set(HEADERS src/defs.hpp
             src/bitboard.hpp
-            src/misc.hpp
+            src/utils.hpp
             src/position.hpp
             src/movegen.hpp
             src/perft.hpp
             src/search.hpp
             src/movepicker.hpp
-            src/psqt.hpp
+
             src/eval.hpp
             src/hashtable.hpp
+            src/pawns.hpp
             src/uci.hpp)
 
-set(USER_FLAGS "-g -Ofast -march=native -lpthread")
+set(USER_FLAGS "-g -Ofast -march=native -lpthread ")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${USER_FLAGS} ")
 

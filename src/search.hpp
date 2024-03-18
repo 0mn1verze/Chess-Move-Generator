@@ -8,9 +8,10 @@
 
 #include "bitboard.hpp"
 #include "defs.hpp"
-#include "misc.hpp"
 #include "movegen.hpp"
 #include "position.hpp"
+#include "utils.hpp"
+
 
 struct PVLine {
   int length;
@@ -44,6 +45,7 @@ public:
   void resetPosition();
   void checkTime();
   bool finishSearch();
+  void tmUpdate();
   std::string pv(PVLine pvLine);
 
   TimeControl tm;
@@ -63,6 +65,8 @@ public:
   PVLine pvLine[MAX_DEPTH + 1];
   int pvStability = 0;
   int ply = 0;
+
+  Count failHigh, failHighFirst;
 
   std::thread searchThread;
 

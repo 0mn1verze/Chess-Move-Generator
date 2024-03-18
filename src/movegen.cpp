@@ -1,6 +1,6 @@
 #include "movegen.hpp"
-#include "misc.hpp"
 #include "position.hpp"
+#include "utils.hpp"
 #include <iostream>
 
 /******************************************\
@@ -11,6 +11,7 @@
 
 template <PieceType pt> void checkBySlider(const Position &pos, Square king) {
   const Colour them = ~pos.getSideToMove();
+  BoardState *st = pos.state();
   Square sq;
   Bitboard enemyPieces = pos.getPiecesBB(them, pt, QUEEN);
   // Pieces that attack the king (Could be through enemy pieces)
@@ -24,12 +25,12 @@ template <PieceType pt> void checkBySlider(const Position &pos, Square king) {
       sq = popLSB(attacks);
       // If there are no pieces in between the attacker and the king,
       // update the check mask
-      if (pos.state()->checkMask == FULLBB)
-        pos.state()->checkMask = pinBB[king][sq];
+      if (st->checkMask == FULLBB)
+        st->checkMask = pinBB[king][sq];
       else
         // Double check = king has to move
-        pos.state()->checkMask = EMPTYBB;
-      pos.state()->kingBan |= checkBB[king][sq];
+        st->checkMask = EMPTYBB;
+      st->kingBan |= checkBB[king][sq];
     }
 
     while (pinners) {
@@ -40,16 +41,17 @@ template <PieceType pt> void checkBySlider(const Position &pos, Square king) {
       // Handle enpassant pin
       if constexpr (pt == BISHOP)
         if (pinBB[king][sq] & pos.getEnPassantTarget(them))
-          pos.state()->enPassantPin = true;
+          st->enPassantPin = true;
 
-      if (pinned and !moreThanOne(pinned))
+      if (pinned and !moreThanOne(pinned)) {
         if constexpr (pt == BISHOP)
-          pos.state()->bishopPin |= pinBB[king][sq];
+          st->bishopPin |= pinBB[king][sq];
         else
-          pos.state()->rookPin |= pinBB[king][sq];
-      // pos.state()->pinned[~them] |= pinned;
-      // if (pinned & pos.getOccupiedBB(~them))
-      //   pos.state()->pinners[them] |= sq;
+          st->rookPin |= pinBB[king][sq];
+        st->pinned[~them] |= pinned;
+        if (pinned & pos.getOccupiedBB(~them))
+          st->pinners[them] |= sq;
+      }
     }
   }
 }
@@ -60,34 +62,38 @@ void refreshMasks(const Position &pos) {
   const Colour us = pos.getSideToMove();
   const Colour them = ~us;
   const Square kingSquare = getLSB(pos.getPiecesBB(us, KING));
+  BoardState *st = pos.state();
 
   // Define pinners bitboard
   Bitboard pinners = EMPTYBB;
 
   // Define king attacks bitboard
-  pos.state()->kingAttacks = attacksBB<KING>(kingSquare, EMPTYBB);
+  st->kingAttacks = attacksBB<KING>(kingSquare, EMPTYBB);
 
-  pos.state()->rookPin = EMPTYBB;
-  pos.state()->bishopPin = EMPTYBB;
+  st->rookPin = EMPTYBB;
+  st->bishopPin = EMPTYBB;
+
+  st->pinners[them] = EMPTYBB;
+  st->pinned[us] = EMPTYBB;
 
   checkBySlider<BISHOP>(pos, kingSquare);
   checkBySlider<ROOK>(pos, kingSquare);
 
-  if (pos.state()->enPassant != NO_SQ)
+  if (st->enPassant != NO_SQ)
     refreshEPPin(pos);
 
-  pos.state()->kingAttacks &= ~(pos.getOccupiedBB(us) | pos.state()->kingBan);
+  st->kingAttacks &= ~(pos.getOccupiedBB(us) | st->kingBan);
 
-  pos.state()->available = pos.state()->checkMask & ~pos.getOccupiedBB(us);
+  st->available = st->checkMask & ~pos.getOccupiedBB(us);
 
-  if (pos.state()->kingAttacks == EMPTYBB)
+  if (st->kingAttacks == EMPTYBB)
     return;
 
-  pos.state()->attacked = pos.attackedByBB(them);
+  st->attacked = pos.attackedByBB(them);
 
-  pos.state()->kingAttacks &= ~pos.state()->attacked;
+  st->kingAttacks &= ~st->attacked;
 
-  pos.state()->kingBan |= pos.state()->attacked;
+  st->kingBan |= st->attacked;
 }
 
 // Refresh en passant pin
@@ -139,11 +145,12 @@ Move *generatePawnMoves(Move *moves, const Position &pos) {
   constexpr Direction push = (us == WHITE) ? NN : SS;
   constexpr Direction EPLeft = (us == WHITE) ? E : W;
   constexpr Direction EPRight = -EPLeft;
-  const bool noCheck = (pos.state()->checkMask == FULLBB);
+  BoardState *st = pos.state();
+  const bool noCheck = (st->checkMask == FULLBB);
 
-  const Bitboard bishopPin = pos.state()->bishopPin;
-  const Bitboard rookPin = pos.state()->rookPin;
-  const Bitboard checkMask = pos.state()->checkMask;
+  const Bitboard bishopPin = st->bishopPin;
+  const Bitboard rookPin = st->rookPin;
+  const Bitboard checkMask = st->checkMask;
 
   constexpr Bitboard promotionRank =
       (us == WHITE) ? rankBB(RANK_7) : rankBB(RANK_2);
@@ -161,7 +168,7 @@ Move *generatePawnMoves(Move *moves, const Position &pos) {
     Bitboard pawnR = pawnsLR & shift<-right>(enemyPieces & checkMask) &
                      (shift<-right>(bishopPin) | ~bishopPin);
 
-    if (pos.state()->enPassant != NO_SQ && !pos.state()->enPassantPin) {
+    if (st->enPassant != NO_SQ && !st->enPassantPin) {
       const Bitboard enPassantTarget = squareBB(pos.getEnPassantTarget(them));
       // Left capture enpassant pawn
       Square pawnEPL =
@@ -256,10 +263,11 @@ Move *generateKnightMoves(Move *moves, const Position &pos) {
   // Side to move and enemy
   const Colour us = pos.getSideToMove();
   const Colour them = ~us;
+  BoardState *st = pos.state();
   // masks
-  Bitboard available = pos.state()->available;
-  Bitboard rookPin = pos.state()->rookPin;
-  Bitboard bishopPin = pos.state()->bishopPin;
+  Bitboard available = st->available;
+  Bitboard rookPin = st->rookPin;
+  Bitboard bishopPin = st->bishopPin;
   // Knights Bitboard (Pinned knights cannot move)
   Bitboard knights = pos.getPiecesBB(us, KNIGHT) & ~(rookPin | bishopPin);
 
@@ -292,10 +300,11 @@ Move *generateBishopMoves(Move *moves, const Position &pos) {
   // Side to move and enemy
   const Colour us = pos.getSideToMove();
   const Colour them = ~us;
+  BoardState *st = pos.state();
   // masks
-  Bitboard available = pos.state()->available;
-  Bitboard rookPin = pos.state()->rookPin;
-  Bitboard bishopPin = pos.state()->bishopPin;
+  Bitboard available = st->available;
+  Bitboard rookPin = st->rookPin;
+  Bitboard bishopPin = st->bishopPin;
   // Queens Bitboard
   Bitboard queens = pos.getPiecesBB(us, QUEEN);
   // Bishops Bitboard (Horizontal pinned bishops cannot move)
@@ -355,10 +364,11 @@ Move *generateRookMoves(Move *moves, const Position &pos) {
   // Side to move and enemy
   const Colour us = pos.getSideToMove();
   const Colour them = ~us;
+  BoardState *st = pos.state();
   // masks
-  Bitboard available = pos.state()->available;
-  Bitboard rookPin = pos.state()->rookPin;
-  Bitboard bishopPin = pos.state()->bishopPin;
+  Bitboard available = st->available;
+  Bitboard rookPin = st->rookPin;
+  Bitboard bishopPin = st->bishopPin;
   // Queens Bitboard
   Bitboard queens = pos.getPiecesBB(us, QUEEN);
   // Rooks Bitboard (Diagonal pinned rooks cannot move)
@@ -417,10 +427,11 @@ Move *generateQueenMoves(Move *moves, const Position &pos) {
   // Side to move and enemy
   const Colour us = pos.getSideToMove();
   const Colour them = ~us;
+  BoardState *st = pos.state();
   // masks
-  Bitboard available = pos.state()->available;
-  Bitboard rookPin = pos.state()->rookPin;
-  Bitboard bishopPin = pos.state()->bishopPin;
+  Bitboard available = st->available;
+  Bitboard rookPin = st->rookPin;
+  Bitboard bishopPin = st->bishopPin;
   // Queens Bitboard (Non pinned)
   Bitboard queens = pos.getPiecesBB(us, QUEEN) & ~(bishopPin | rookPin);
 
@@ -450,10 +461,11 @@ template <GenType gt, Colour us>
 Move *generateKingMoves(Move *moves, const Position &pos) {
   // Side to move and enemy
   constexpr Colour them = ~us;
+  BoardState *st = pos.state();
   // King attacks
-  Bitboard kingAttacks = pos.state()->kingAttacks;
+  Bitboard kingAttacks = st->kingAttacks;
   Square origin = getLSB(pos.getPiecesBB(us, KING));
-  bool noCheck = (pos.state()->checkMask == FULLBB);
+  bool noCheck = (st->checkMask == FULLBB);
 
   if constexpr (gt == CAPTURES)
     // Generate only attacks if in captures mode
@@ -487,16 +499,16 @@ Move *generateKingMoves(Move *moves, const Position &pos) {
   constexpr Castling kingSide = (us == WHITE) ? WKCA : BKCA;
   constexpr Castling queenSide = (us == WHITE) ? WQCA : BQCA;
 
-  if (pos.state()->castling & kingSide) {
+  if (st->castling & kingSide) {
     // Check if king is not in check and squares are not occupied
-    if (noCheck && !(pos.state()->kingBan & kingSideSquares) &&
+    if (noCheck && !(st->kingBan & kingSideSquares) &&
         !(pos.getOccupiedBB() & kingSideSquares))
       *moves++ = Move::encode<CASTLE>(origin, kingSideDest);
   }
 
-  if (pos.state()->castling & queenSide) {
+  if (st->castling & queenSide) {
     // Check if king is not in check and squares are not occupied
-    if (noCheck && !(pos.state()->kingBan & queenSideSquares) &&
+    if (noCheck && !(st->kingBan & queenSideSquares) &&
         !(pos.getOccupiedBB() & queenSideOccupiedSquares))
       *moves++ = Move::encode<CASTLE>(origin, queenSideDest);
   }

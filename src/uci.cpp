@@ -4,13 +4,14 @@
 
 #include "bitboard.hpp"
 #include "defs.hpp"
+#include "eval.hpp"
 #include "hashtable.hpp"
-#include "misc.hpp"
 #include "movegen.hpp"
 #include "perft.hpp"
 #include "position.hpp"
 #include "search.hpp"
 #include "uci.hpp"
+#include "utils.hpp"
 
 constexpr std::string_view NAME = "Maestro";
 constexpr std::string_view AUTHOR = "Evan Fung";
@@ -20,6 +21,7 @@ UCI::UCI() {
   initBitboards();
   initZobrist();
   TTInit(36);
+  PSQT::init();
 }
 
 // Main loop of the chess engine
