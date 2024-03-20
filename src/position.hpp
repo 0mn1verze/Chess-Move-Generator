@@ -138,10 +138,6 @@ public:
   }
   Bitboard getSliderBlockers(Bitboard sliders, Square sq,
                              Bitboard &pinners) const;
-  Score getPSQTScore() const { return psq; }
-  Value nonPawnMaterial() const {
-    return st->nonPawnMaterial[WHITE] + st->nonPawnMaterial[BLACK];
-  }
 
   // Piece manipulations
   void putPiece(Piece pce, Square sq);
@@ -152,6 +148,8 @@ public:
 
   Bitboard attackedByBB(Colour enemy) const;
   Bitboard sqAttackedByBB(Square sq, Bitboard occupied) const;
+  bool isLegal(Move move) const;
+  bool SEE(Move move, Value threshold) const;
 
   int pliesFromStart;
 

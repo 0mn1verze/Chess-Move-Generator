@@ -69,15 +69,6 @@ inline std::string move2Str(const Move &m) {
   return move;
 }
 
-inline std::string score2Str(const Value score) {
-  if (score > -VAL_MATE and score < -VAL_MATE_BOUND) {
-    return std::format("mate {}", -(score + VAL_MATE) / 2 - 1);
-  } else if (score < VAL_MATE and score > VAL_MATE_BOUND) {
-    return std::format("mate {}", (VAL_MATE - score) / 2 + 1);
-  }
-  return std::format("cp {}", score);
-}
-
 /******************************************\
 |==========================================|
 |                   Time                   |

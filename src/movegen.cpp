@@ -48,9 +48,6 @@ template <PieceType pt> void checkBySlider(const Position &pos, Square king) {
           st->bishopPin |= pinBB[king][sq];
         else
           st->rookPin |= pinBB[king][sq];
-        st->pinned[~them] |= pinned;
-        if (pinned & pos.getOccupiedBB(~them))
-          st->pinners[them] |= sq;
       }
     }
   }
@@ -72,9 +69,6 @@ void refreshMasks(const Position &pos) {
 
   st->rookPin = EMPTYBB;
   st->bishopPin = EMPTYBB;
-
-  st->pinners[them] = EMPTYBB;
-  st->pinned[us] = EMPTYBB;
 
   checkBySlider<BISHOP>(pos, kingSquare);
   checkBySlider<ROOK>(pos, kingSquare);

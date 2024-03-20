@@ -304,4 +304,8 @@ constexpr Bitboard sameColourSquares(Square sq) {
   return (DarkSquares & sq) ? DarkSquares : ~DarkSquares;
 }
 
+constexpr bool aligned(Square sq1, Square sq2, Square sq3) {
+  return lineBB[sq1][sq2] & squareBB(sq3);
+}
+
 #endif // BITBOARD_HPP

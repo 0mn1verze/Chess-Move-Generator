@@ -8,27 +8,13 @@ set(SOURCES src/bitboard.cpp
             src/position.cpp
             src/movegen.cpp
             src/perft.cpp
-            src/search.cpp
-            src/uci.cpp
-            src/movepicker.cpp
-            src/eval.cpp
-            src/hashtable.cpp
-            src/pawns.cpp
-            src/psqt.cpp
             src/main.cpp)
 set(HEADERS src/defs.hpp
             src/bitboard.hpp
             src/utils.hpp
             src/position.hpp
             src/movegen.hpp
-            src/perft.hpp
-            src/search.hpp
-            src/movepicker.hpp
-
-            src/eval.hpp
-            src/hashtable.hpp
-            src/pawns.hpp
-            src/uci.hpp)
+            src/perft.hpp)
 
 set(USER_FLAGS "-g -Ofast -march=native -lpthread ")
 
