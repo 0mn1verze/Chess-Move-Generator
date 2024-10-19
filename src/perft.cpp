@@ -17,9 +17,8 @@ Count perftDriver(Position &pos, int depth) {
   Move *last = generateMoves<ALL>(moves, pos);
 
   // Return move count (bulk counting)
-  if (depth == 1) {
+  if (depth == 1)
     return last - moves;
-  }
 
   Count nodes = 0;
 
@@ -28,8 +27,7 @@ Count perftDriver(Position &pos, int depth) {
   for (Move *begin = moves; begin < last; ++begin) {
     pos.makeMove(*begin, st);
     // Recurse if depth > 1
-    Count newNodes = perftDriver(pos, depth - 1);
-    nodes += newNodes;
+    nodes += perftDriver(pos, depth - 1);
 
     pos.unmakeMove();
   }
@@ -148,7 +146,7 @@ void perftBench() {
                 << std::endl;
     } else {
       std::cout << "	Perft Test: " << p.fen << " Depth: " << p.depth
-                << " Nodes: " << p.nodes << " Failed in " << duration << " ms"
+                << " Nodes: " << p.nodes << "(" << nodes << ")" << " Failed in " << duration << " ms with " << nodes / 1000 / duration << " Mnps"
                 << std::endl;
     }
   }

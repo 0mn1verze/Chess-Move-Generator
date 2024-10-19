@@ -53,6 +53,20 @@ void initZobrist();
 \******************************************/
 
 struct BoardState {
+
+  BoardState& operator=(const BoardState &bs) {
+    enPassant = bs.enPassant;
+    plies = bs.plies;
+    fiftyMove = bs.fiftyMove;
+    std::copy(std::begin(bs.nonPawnMaterial),
+              std::end(bs.nonPawnMaterial), std::begin(nonPawnMaterial));
+    castling = bs.castling;
+    // move = Move::none();
+    checkMask = FULLBB;
+    kingBan = EMPTYBB;
+    return *this;
+  }
+
   // Copied when making new move
   Square enPassant;
   int plies;
@@ -67,7 +81,7 @@ struct BoardState {
   int repetition;
   Move move = Move::none();
   Bitboard checkMask = FULLBB;
-  Bitboard rookPin, bishopPin, kingBan, kingAttacks, available, attacked,
+  Bitboard rookPin = EMPTYBB, bishopPin = EMPTYBB, kingBan = EMPTYBB, kingAttacks = EMPTYBB, available = EMPTYBB, attacked = EMPTYBB,
       pinned[COLOUR_N], pinners[COLOUR_N];
   bool enPassantPin = false;
 
@@ -163,7 +177,6 @@ private:
   // Board state
   BoardState *st;
   Colour sideToMove;
-  Score psq;
 };
 
 template <typename... PieceTypes>

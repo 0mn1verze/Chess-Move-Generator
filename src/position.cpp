@@ -419,8 +419,8 @@ bool Position::isCapture(Move move) const { return getPiece(move.to()); }
 void Position::makeMove(Move move, BoardState &state) {
   // Reset new state
   state = {};
-  // Copy current board state to new state partially
-  std::memcpy(&state, st, offsetof(BoardState, key));
+  state = *st;
+  // std::memcpy(&state, st, sizeof(BoardState));
 
   // Get Hash Key (And change sides)
   Key hashKey = st->key ^ Zobrist::sideKey;
@@ -471,19 +471,18 @@ void Position::makeMove(Move move, BoardState &state) {
   } else
     st->captured = NO_PIECE;
 
-  // Update enpassant square
+  // Reset enpassant square
   if (st->enPassant != NO_SQ) {
     // Update hash key
     hashKey ^= Zobrist::enPassantKeys[fileOf(st->enPassant)];
     // Remove enpassant square
     st->enPassant = NO_SQ;
   }
-
   // Enpassant Square update
-  if (toPieceType(piece) == PAWN && std::abs(rankOf(to) - rankOf(from)) == 2) {
-    st->enPassant = from + ((sideToMove == WHITE) ? N : S);
-    // Update hash key
-    hashKey ^= Zobrist::enPassantKeys[fileOf(st->enPassant)];
+  if (std::abs(to - from) == 16 && toPieceType(piece) == PAWN) [[likely]] { 
+      st->enPassant = from + ((sideToMove == WHITE) ? N : S);
+      // Update hash key
+      hashKey ^= Zobrist::enPassantKeys[fileOf(st->enPassant)];
   }
 
   // Update board by moving piece to the destination

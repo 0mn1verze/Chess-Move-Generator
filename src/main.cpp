@@ -13,9 +13,10 @@ int main() {
 
   Position pos;
   BoardState st{};
-  pos.set(startPos.data(), st);
+  const std::string fen(startPos);
+  pos.set(fen, st);
 
-  perftTest(pos, 6);
-
+  perftTest(pos, 7);
+  
   return 0;
 }

@@ -112,13 +112,6 @@ enum Castling {
     CASTLING_N = 16
 };
 
-enum ScaleFactor {
-  SCALE_FACTOR_DRAW    = 0,
-  SCALE_FACTOR_NORMAL  = 64,
-  SCALE_FACTOR_MAX     = 128,
-  SCALE_FACTOR_NONE    = 255
-};
-
 // clang-format on
 
 /******************************************\
@@ -160,6 +153,7 @@ public:
   bool isPromotion() const { return flag() == PROMOTION; }
   bool isCastle() const { return flag() == CASTLE; }
   bool isNormal() const { return flag() == NORMAL; }
+  bool isPush() const { return std::abs(to() - from()) == 16; } 
 
   // Operators
   constexpr bool operator==(const Move &m) const { return data == m.raw(); }
@@ -211,9 +205,15 @@ constexpr Score operator*(Score s1, int d) {
 constexpr Score operator/(Score s1, int d) {
   return Score(s1.mg / d, s1.eg / d);
 }
-constexpr Score operator-(Score &s1) { return _S(-s1.mg, -s1.eg); }
-constexpr Score &operator+=(Score &s1, Score s2) { return s1 = s1 + s2; }
-constexpr Score &operator-=(Score &s1, Score s2) { return s1 = s1 - s2; }
+constexpr Score operator-(Score &s1) { 
+  return _S(-s1.mg, -s1.eg); 
+}
+constexpr Score &operator+=(Score &s1, Score s2) { 
+  return s1 = s1 + s2;
+}
+constexpr Score &operator-=(Score &s1, Score s2) { 
+  return s1 = s1 - s2; 
+}
 constexpr bool operator==(Score s1, Score s2) {
   return s1.mg == s2.mg && s1.eg == s2.eg;
 }

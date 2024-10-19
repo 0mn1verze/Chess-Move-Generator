@@ -16,7 +16,9 @@ set(HEADERS src/defs.hpp
             src/movegen.hpp
             src/perft.hpp)
 
-set(USER_FLAGS "-g -Ofast -march=native -lpthread ")
+set(USER_FLAGS "-g -Ofast -march=native -lpthread -DUSE_AVX -mavx2 -DUSE-SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse")
+
+set(EXECUTABLE_OUTPUT_PATH ../bin)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${USER_FLAGS} ")
 

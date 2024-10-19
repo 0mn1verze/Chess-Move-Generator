@@ -221,7 +221,7 @@ int fileDist(Square sq1, Square sq2);
 \******************************************/
 
 template <PieceType pt>
-Bitboard attacksBB(Square sq, Bitboard occupied = 0ULL) {
+constexpr Bitboard attacksBB(Square sq, Bitboard occupied = 0ULL) {
   switch (pt) {
   case KNIGHT:
     return pseudoAttacks[KNIGHT][sq];

@@ -84,7 +84,7 @@ int fileDist(Square sq1, Square sq2)
     return std::abs(fileOf(sq1) - fileOf(sq2));
 }
 
-static int sqDist(Square sq1, Square sq2)
+int sqDist(Square sq1, Square sq2)
 {
     return dist[sq1][sq2];
 }
@@ -130,16 +130,20 @@ constexpr Direction direction(Square from, Square to)
 |==========================================|
 \******************************************/
 
+// Calculate the attacks of a piece on the fly (Slow approach used to populate tables)
 template <PieceType pt>
 static inline Bitboard attacksOnTheFly(Square sq, Bitboard occupied)
 {
+    // Directions for rook and bishop
     constexpr Direction rookDir[4] = {N, E, W, S};
     constexpr Direction bishopDir[4] = {NE, NW, SE, SW};
 
+    // Get the corresponding attack pattern for the piece
     Bitboard attacks = EMPTYBB;
     for (Direction d : (pt == BISHOP) ? bishopDir : rookDir)
     {
         Square to = sq;
+        // While the shift is valid and the square is not occupied
         while (shift(to, d) && !(occupied & to))
             attacks |= (to += d);
     }
@@ -154,7 +158,7 @@ static inline Bitboard attacksOnTheFly(Square sq, Bitboard occupied)
 \******************************************/
 
 template <PieceType pt>
-static inline void initMagics(Bitboard table[], Magic magics[])
+constexpr void initMagics(Bitboard table[], Magic magics[])
 {
     int size;
     Bitboard edges, occupied;
