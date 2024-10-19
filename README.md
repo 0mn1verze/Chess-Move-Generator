@@ -1,4 +1,4 @@
-# Maestro Chess Engine
+# Move generator for Maestro Chess Engine
 
 This is a chess move generator project I used to learn c++ programming.
 
