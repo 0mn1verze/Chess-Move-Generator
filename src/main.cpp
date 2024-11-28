@@ -3,20 +3,27 @@
 
 #include "bitboard.hpp"
 #include "defs.hpp"
+#include "hash.hpp"
 #include "movegen.hpp"
 #include "perft.hpp"
 #include "position.hpp"
 
+
+using namespace Maestro;
+
 int main() {
 
   initBitboards();
+  initZobrist();
 
   Position pos;
   BoardState st{};
   const std::string fen(startPos);
   pos.set(fen, st);
 
-  perftTest(pos, 7);
-  
+  perftTest(pos, 8);
+
+  // perftBench("bench.csv");
+
   return 0;
 }

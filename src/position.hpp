@@ -8,6 +8,8 @@
 #include "bitboard.hpp"
 #include "defs.hpp"
 
+namespace Maestro {
+
 /******************************************\
 |==========================================|
 |            Useful fen strings            |
@@ -29,24 +31,6 @@ constexpr std::string_view repetitions =
 
 /******************************************\
 |==========================================|
-|             Zobrist Hashing              |
-|==========================================|
-\******************************************/
-
-// https://www.chessprogramming.org/Zobrist_Hashing
-
-namespace Zobrist {
-extern Key pieceSquareKeys[PIECE_N][SQ_N];
-extern Key enPassantKeys[FILE_N];
-extern Key castlingKeys[CASTLING_N];
-extern Key sideKey;
-} // namespace Zobrist
-
-// Init zobrist hashing
-void initZobrist();
-
-/******************************************\
-|==========================================|
 |               Board State                |
 |          Used for unmaking moves         |
 |==========================================|
@@ -54,18 +38,7 @@ void initZobrist();
 
 struct BoardState {
 
-  BoardState& operator=(const BoardState &bs) {
-    enPassant = bs.enPassant;
-    plies = bs.plies;
-    fiftyMove = bs.fiftyMove;
-    std::copy(std::begin(bs.nonPawnMaterial),
-              std::end(bs.nonPawnMaterial), std::begin(nonPawnMaterial));
-    castling = bs.castling;
-    // move = Move::none();
-    checkMask = FULLBB;
-    kingBan = EMPTYBB;
-    return *this;
-  }
+  BoardState copy(const BoardState &bs);
 
   // Copied when making new move
   Square enPassant;
@@ -73,24 +46,24 @@ struct BoardState {
   int fiftyMove;
   Value nonPawnMaterial[COLOUR_N];
   Castling castling = NO_CASTLE;
+  Score psq;
+  int gamePhase;
 
   // Not copied when making new move
   Key key;
   Key pawnKey;
   Piece captured = NO_PIECE;
   int repetition;
-  Move move = Move::none();
   Bitboard checkMask = FULLBB;
-  Bitboard rookPin = EMPTYBB, bishopPin = EMPTYBB, kingBan = EMPTYBB, kingAttacks = EMPTYBB, available = EMPTYBB, attacked = EMPTYBB,
+  Bitboard rookPin, bishopPin, kingBan, kingAttacks, available, attacked,
       pinned[COLOUR_N], pinners[COLOUR_N];
   bool enPassantPin = false;
-
   // Previous pieceList state
   BoardState *previous;
 };
 
 // Move history (Ideas from Stockfish)
-using StateList = std::unique_ptr<std::deque<BoardState>>;
+using StateListPtr = std::unique_ptr<std::deque<BoardState>>;
 
 /******************************************\
 |==========================================|
@@ -104,11 +77,13 @@ public:
   Position(const Position &pos) = delete;
   Position &operator=(const Position &pos) = default;
 
-  // Init pieceList states
+  // Init Position
   void set(const std::string &fen, BoardState &state);
-  void setState(BoardState &state);
+
+  std::string fen() const;
+
+  // Init Keys
   Key initKey() const;
-  void initScore();
   Key initPawnKey() const;
 
   // Output
@@ -116,91 +91,164 @@ public:
 
   // Making and unmaking moves
   void makeMove(Move move, BoardState &state);
-  void unmakeMove();
+  void unmakeMove(Move move);
   void makeNullMove(BoardState &state);
   void unmakeNullMove();
 
-  // Boardstate getters
-  BoardState *state() const { return st; }
-  bool isInCheck() const { return (st->checkMask != FULLBB); }
+  // Board State getters
+  BoardState *state() const;
+  Square enPassantTarget(Colour side) const;
+  int nonPawnMaterial() const;
+  int nonPawnMaterial(Colour c) const;
+  Piece captured() const;
+  int fiftyMove() const;
+  Key key() const;
+  Key pawnKey() const;
+  Score psq() const;
+  int gamePhase() const;
+
+  // Position getters
+  int gamePlies() const;
+
+  // Board helper functions
+  bool empty(Square sq) const;
+  bool canCastle(Castling cr) const;
+  bool isInCheck() const;
   bool isDraw(int ply) const;
   bool isCapture(Move move) const;
 
-  // Board getters
-  Bitboard getPiecesBB(PieceType pt) const { return piecesBB[pt]; }
-  template <typename... PieceTypes>
-  Bitboard getPiecesBB(PieceType pt, PieceTypes... pts) const;
-  template <typename... PieceTypes>
-  Bitboard getPiecesBB(Colour us, PieceTypes... pts) const;
-  Piece getPiece(Square sq) const { return board[sq]; }
-  PieceType getPieceType(Square sq) const { return toPieceType(board[sq]); }
-  int getPieceCount(Piece pce) const { return pieceCount[pce]; }
-  Bitboard getOccupiedBB() const { return occupiedBB[BOTH]; }
-  Bitboard getOccupiedBB(Colour us) const { return occupiedBB[us]; }
-  Colour getSideToMove() const { return sideToMove; }
-  Square getEnPassantTarget(Colour side) const {
-    return st->enPassant + ((side == WHITE) ? N : S);
-  }
-  Square kingSquare(Colour side) const {
-    return getLSB(getPiecesBB(side, KING));
-  }
-  bool isOnSemiOpenFile(Colour side, Square sq) const {
-    return !(getPiecesBB(side, PAWN) & fileBB(sq));
-  }
-  Castling castling(Colour c) const {
-    return Castling(st->castling & (c == WHITE ? WHITE_SIDE : BLACK_SIDE));
-  }
-  Bitboard getSliderBlockers(Bitboard sliders, Square sq,
-                             Bitboard &pinners) const;
+  // Move helper functions
+  PieceType captured(Move move) const;
+  PieceType movedPieceType(Move move) const;
 
+  // Board piece bitboard getters
+  Bitboard pieces(PieceType pt) const;
+  template <typename... PieceTypes>
+  Bitboard pieces(PieceType pt, PieceTypes... pts) const;
+  template <typename... PieceTypes>
+  Bitboard pieces(Colour us, PieceTypes... pts) const;
+
+  // Get piece information from square
+  Piece pieceOn(Square sq) const;
+  PieceType pieceTypeOn(Square sq) const;
+  template <PieceType pt> Square square(Colour us) const;
+  template <PieceType pt> const Square *squares(Colour us) const;
+  const Square *squares(Colour us, PieceType pt) const;
+
+  // Piece count
+  template <Piece pc> int count() const;
+  template <PieceType pt> int count() const;
+  int count(PieceType pt) const;
+  int count(Piece pc) const;
+
+  // Board occupancy
+  Bitboard occupied() const;
+  Bitboard occupied(Colour us) const;
+
+  // Side to move
+  Colour sideToMove() const;
+
+  // Castling
+  Castling castling() const;
+  Castling castling(Colour us) const;
+
+  // Slider blockers
+  Bitboard sliderBlockers(Bitboard sliders, Square sq, Bitboard &pinners) const;
+
+  // Move generation and legality helper functions
+  Bitboard attackedByBB(Colour enemy) const;
+  Bitboard sqAttackedByBB(Square sq, Bitboard occupied) const;
+  bool isPseudoLegal(Move move) const;
+  bool isLegal(Move move) const;
+  Bitboard pinners() const;
+  Bitboard blockersForKing() const;
+
+  // Gives check
+  bool givesCheck(Move move) const;
+
+  // Position has repeated
+  bool hasRepeated() const;
+
+  int _gamePlies;
+
+private:
+  void setState() const;
   // Piece manipulations
   void putPiece(Piece pce, Square sq);
   void popPiece(Square sq);
   void movePiece(Square from, Square to);
   template <bool doMove>
   void castleRook(Square from, Square to, Square &rookFrom, Square &rookTo);
-
-  Bitboard attackedByBB(Colour enemy) const;
-  Bitboard sqAttackedByBB(Square sq, Bitboard occupied) const;
-  bool isLegal(Move move) const;
-  bool SEE(Move move, Value threshold) const;
-
-  int pliesFromStart;
-
-private:
+  // Set state functions
+  std::pair<int, int> initNonPawnMaterial() const;
+  Score initPSQT() const;
+  int initGamePhase() const;
   // Piece list
-  Piece board[SQ_N];
-  int pieceCount[PIECE_N];
+  Piece _board[SQ_N];
+  int _pieceCount[PIECE_N];
+  int _index[SQ_N];
+  Square _pieceList[PIECE_N][16];
   // Bitboard representation
-  Bitboard piecesBB[PIECE_TYPE_N];
-  Bitboard occupiedBB[COLOUR_N + 1];
+  Bitboard _piecesBB[PIECE_TYPE_N];
+  Bitboard _occupiedBB[COLOUR_N];
   // Board state
   BoardState *st;
-  Colour sideToMove;
+  Colour _sideToMove;
 };
 
-template <typename... PieceTypes>
-Bitboard Position::getPiecesBB(PieceType pt, PieceTypes... pts) const {
-  return piecesBB[pt] | getPiecesBB(pts...);
-}
-template <typename... PieceTypes>
-Bitboard Position::getPiecesBB(Colour us, PieceTypes... pts) const {
-  return occupiedBB[us] & getPiecesBB(pts...);
+/******************************************\
+|==========================================|
+|            Template functions            |
+|==========================================|
+\******************************************/
+
+// Get square of a piece type
+template <PieceType pt> Square Position::square(Colour us) const {
+  return _pieceList[toPiece(us, pt)][0];
 }
 
+// Get squares of a piece type
+template <PieceType pt>
+inline const Square *Position::squares(Colour us) const {
+  return _pieceList[toPiece(us, pt)];
+}
+
+// Get the bitboard of pieces of certain types
+template <typename... PieceTypes>
+inline Bitboard Position::pieces(PieceType pt, PieceTypes... pts) const {
+  return _piecesBB[pt] | pieces(pts...);
+}
+
+// Get the bitboard of pieces of certain types for a colour
+template <typename... PieceTypes>
+inline Bitboard Position::pieces(Colour us, PieceTypes... pts) const {
+  return _occupiedBB[us] & pieces(pts...);
+}
+
+// U32 the number of pieces of a certain type
+template <Piece pc> inline int Position::count() const {
+  return _pieceCount[pc];
+}
+
+// U32 the number of pieces of a certain type
+template <PieceType pt> inline int Position::count() const {
+  return _pieceCount[toPiece(WHITE, pt)] + _pieceCount[toPiece(BLACK, pt)];
+}
+
+// Get the slider blockers for a square
 template <bool doMove>
-void Position::castleRook(Square from, Square to, Square &rookFrom,
-                          Square &rookTo) {
+inline void Position::castleRook(Square from, Square to, Square &rookFrom,
+                                 Square &rookTo) {
   bool kingSide = to > from;
   // Define the square that the rook is from
   rookFrom = kingSide ? H1 : A1;
   // Flip the rank if the side to move is black
-  rookFrom = (sideToMove == BLACK) ? flipRank(rookFrom) : rookFrom;
+  rookFrom = (_sideToMove == BLACK) ? flipRank(rookFrom) : rookFrom;
 
   // Define the square that the rook is going to
   rookTo = kingSide ? F1 : D1;
   // Flip the rank if the side to move is black
-  rookTo = (sideToMove == BLACK) ? flipRank(rookTo) : rookTo;
+  rookTo = (_sideToMove == BLACK) ? flipRank(rookTo) : rookTo;
 
   // Move the rook
   if constexpr (doMove)
@@ -210,4 +258,129 @@ void Position::castleRook(Square from, Square to, Square &rookFrom,
     // Move the rook back
     movePiece(rookTo, rookFrom);
 }
+
+/******************************************\
+|==========================================|
+|             Class Functions              |
+|==========================================|
+\******************************************/
+
+// State getter
+inline BoardState *Position::state() const { return st; }
+
+// Get squares of a piece type
+inline const Square *Position::squares(Colour c, PieceType pt) const {
+  return _pieceList[toPiece(c, pt)];
+}
+
+// Get previously captured piece
+inline Piece Position::captured() const { return st->captured; }
+
+// Get hash key
+inline Key Position::key() const { return st->key; }
+
+// Get pawn hash key
+inline Key Position::pawnKey() const { return st->pawnKey; }
+
+// Get fifty move counter
+inline int Position::fiftyMove() const { return st->fiftyMove; }
+
+// Check if the position is in check
+inline bool Position::isInCheck() const { return (st->checkMask != FULLBB); }
+
+// Check if move is capture
+inline bool Position::isCapture(Move move) const {
+  return move and pieceOn(move.to());
+}
+
+inline PieceType Position::captured(Move move) const {
+  return move.is<NORMAL>() ? pieceTypeOn(move.to()) : PAWN;
+}
+
+inline PieceType Position::movedPieceType(Move move) const {
+  return pieceTypeOn(move.from());
+}
+
+// Returns bitboard for piece type
+inline Bitboard Position::pieces(PieceType pt) const { return _piecesBB[pt]; }
+
+// Returns piece on square
+inline Piece Position::pieceOn(Square sq) const { return _board[sq]; }
+
+// Returns piece type on square
+inline PieceType Position::pieceTypeOn(Square sq) const {
+  return pieceTypeOf(_board[sq]);
+}
+
+// Returns the number of plies from the start
+inline int Position::gamePlies() const { return _gamePlies; }
+
+// Returns the occupany of one colour
+inline Bitboard Position::occupied() const {
+  return _occupiedBB[WHITE] | _occupiedBB[BLACK];
+}
+
+// Returns the total occupancy
+inline Bitboard Position::occupied(Colour us) const { return _occupiedBB[us]; }
+// Returns side to move
+inline Colour Position::sideToMove() const { return _sideToMove; }
+
+// Returns castling rights
+inline Castling Position::castling() const { return st->castling; }
+
+// Returns castling rights for a side
+inline Castling Position::castling(Colour us) const {
+  return st->castling & ((us == WHITE) ? WHITE_SIDE : BLACK_SIDE);
+}
+
+// Returns the square the enPassant pawn is on
+inline Square Position::enPassantTarget(Colour side) const {
+  return st->enPassant + ((side == WHITE) ? N : S);
+}
+
+// Returns the non pawn material
+inline int Position::nonPawnMaterial() const {
+  return st->nonPawnMaterial[WHITE] + st->nonPawnMaterial[BLACK];
+}
+
+// Returns the non pawn material for a colour
+inline int Position::nonPawnMaterial(Colour c) const {
+  return st->nonPawnMaterial[c];
+}
+// Check if square is empty
+inline bool Position::empty(Square sq) const { return pieceOn(sq) == NO_PIECE; }
+// Check if a castling right is legal
+inline bool Position::canCastle(Castling cr) const { return st->castling & cr; }
+
+inline Score Position::psq() const { return st->psq; }
+
+inline int Position::gamePhase() const { return st->gamePhase; }
+
+inline int Position::count(PieceType pt) const {
+  return _pieceCount[toPiece(WHITE, pt)] + _pieceCount[toPiece(BLACK, pt)];
+}
+inline int Position::count(Piece pc) const { return _pieceCount[pc]; }
+
+// Returns blockers for king
+inline Bitboard Position::blockersForKing() const {
+  return st->bishopPin & occupied(_sideToMove) |
+         st->rookPin & occupied(_sideToMove);
+}
+
+// Returns whether a position has repeated
+inline bool Position::hasRepeated() const {
+  BoardState *state = st;
+  int end = std::min(_gamePlies, st->fiftyMove);
+  while (end-- >= 4) {
+    if (state->repetition)
+      return true;
+
+    state = state->previous;
+  }
+
+  return false;
+}
+
+} // namespace Maestro
+
 #endif // POSITION_HPP
