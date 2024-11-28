@@ -5,6 +5,7 @@
 
 #include "bitboard.hpp"
 #include "defs.hpp"
+#include "eval.hpp"
 #include "hash.hpp"
 #include "movegen.hpp"
 #include "position.hpp"
@@ -52,9 +53,9 @@ void Position::putPiece(Piece piece, Square sq) {
   _index[sq] = _pieceCount[piece]++;
   _pieceList[piece][_index[sq]] = sq;
   // Update game phase
-  // st->gamePhase += Eval::gamePhaseInc[pieceTypeOf(piece)];
+  st->gamePhase += Eval::gamePhaseInc[pieceTypeOf(piece)];
   // Update psq score
-  // st->psq += Eval::psqt[piece][sq];
+  st->psq += Eval::psqt[piece][sq];
 }
 
 // Remove piece on square
@@ -75,9 +76,9 @@ void Position::popPiece(Square sq) {
   _pieceList[pc][_index[lastSq]] = lastSq;
   _pieceList[pc][_pieceCount[pc]] = NO_SQ;
   // Update game phase
-  // st->gamePhase -= Eval::gamePhaseInc[pieceTypeOf(pc)];
+  st->gamePhase -= Eval::gamePhaseInc[pieceTypeOf(pc)];
   // Update psq score
-  // st->psq -= Eval::psqt[pc][sq];
+  st->psq -= Eval::psqt[pc][sq];
 }
 
 // Move piece between two squares without updating piece counts (Quicker)
@@ -96,7 +97,7 @@ void Position::movePiece(Square from, Square to) {
   _index[to] = _index[from];
   _pieceList[pc][_index[to]] = to;
   // Update psq score
-  // st->psq += Eval::psqt[pc][to] - Eval::psqt[pc][from];
+  st->psq += Eval::psqt[pc][to] - Eval::psqt[pc][from];
 }
 
 /******************************************\
@@ -396,50 +397,45 @@ Key Position::initPawnKey() const {
   return key;
 }
 
-// Score Position::initNonPawnMaterial() const {
-//   // Initialize non pawn material
-//   int whiteNPM = 0, blackNPM = 0;
-//   // Loop through all pieces
-//   for (PieceType pt = KNIGHT; pt <= KING; ++pt) {
-//     // Update non pawn material
-//     whiteNPM +=
-//         Eval::pieceScore[toPiece(WHITE, pt)] * pieceCount[toPiece(WHITE,
-//         pt)];
-//     blackNPM +=
-//         Eval::pieceScore[toPiece(BLACK, pt)] * pieceCount[toPiece(BLACK,
-//         pt)];
-//   }
+std::pair<int, int> Position::initNonPawnMaterial() const {
+  // Initialize non pawn material
+  int whiteNPM = 0, blackNPM = 0;
+  // Loop through all pieces
+  for (PieceType pt = KNIGHT; pt <= KING; ++pt) {
+    // Update non pawn material
+    whiteNPM += Eval::pieceValue[pt] * count(toPiece(WHITE, pt));
+    blackNPM += Eval::pieceValue[pt] * count(toPiece(BLACK, pt));
+  }
 
-//   return {whiteNPM, blackNPM};
-// }
+  return {whiteNPM, blackNPM};
+}
 
-// Score Position::initPSQT() const {
-//   // Initialise piece square value
-//   Score psq = SCORE_ZERO;
-//   // Loop through all squares
-//   for (Square square = A1; square <= H8; ++square) {
-//     // Get piece on the square
-//     Piece piece = getPiece(square);
-//     // If there is a piece on the square, update piece square value
-//     if (piece != NO_PIECE) {
-//       psq += Eval::psqt[piece][square];
-//     }
-//   }
+Score Position::initPSQT() const {
+  // Initialise piece square value
+  Score psq = SCORE_ZERO;
+  // Loop through all squares
+  for (Square square = A1; square <= H8; ++square) {
+    // Get piece on the square
+    Piece piece = pieceOn(square);
+    // If there is a piece on the square, update piece square value
+    if (piece != NO_PIECE) {
+      psq += Eval::psqt[piece][square];
+    }
+  }
 
-//   return psq;
-// }
+  return psq;
+}
 
-// int Position::initGamePhase() const {
-//   // Initialize game phase
-//   int gamePhase = 0;
-//   // Loop through all pieces
-//   for (PieceType pt = KNIGHT; pt <= KING; ++pt) {
-//     // Update game phase
-//     gamePhase += Eval::gamePhaseInc[pt] * pieceCount[toPiece(WHITE, pt)];
-//     gamePhase += Eval::gamePhaseInc[pt] * pieceCount[toPiece(BLACK, pt)];
-//   }
-//   return gamePhase;
-// }
+int Position::initGamePhase() const {
+  // Initialize game phase
+  int gamePhase = 0;
+  // Loop through all pieces
+  for (PieceType pt = KNIGHT; pt <= KING; ++pt)
+    // Update game phase
+    gamePhase += Eval::gamePhaseInc[pt] * count(pt);
+
+  return gamePhase;
+}
 
 /******************************************\
 |==========================================|
@@ -468,6 +464,7 @@ Bitboard Position::sqAttackedByBB(Square sq, Bitboard occupied) const {
 Bitboard Position::attackedByBB(Colour enemy) const {
   Square attacker;
   Bitboard attacks = EMPTYBB;
+  const Bitboard occ = occupied();
 
   // Knight attacks
   Bitboard knights = pieces(enemy, KNIGHT);
@@ -482,28 +479,27 @@ Bitboard Position::attackedByBB(Colour enemy) const {
                               : pawnAttacksBB<BLACK>(pawns);
 
   // King attacks
-  Bitboard kings = pieces(enemy, KING);
-  attacks |= attacksBB<KING>(popLSB(kings));
+  attacks |= attacksBB<KING>(square<KING>(enemy));
 
   // Bishop and Queen attacks
   Bitboard bishops = pieces(enemy, BISHOP, QUEEN);
   while (bishops) {
     attacker = popLSB(bishops);
-    attacks |= attacksBB<BISHOP>(attacker, occupied());
+    attacks |= attacksBB<BISHOP>(attacker, occ);
   }
 
   // Rook and Queen attacks
   Bitboard rooks = pieces(enemy, ROOK, QUEEN);
   while (rooks) {
     attacker = popLSB(rooks);
-    attacks |= attacksBB<ROOK>(attacker, occupied());
+    attacks |= attacksBB<ROOK>(attacker, occ);
   }
 
   return attacks;
 }
 
 Bitboard Position::sliderBlockers(Bitboard sliders, Square sq,
-                                     Bitboard &pinners) const {
+                                  Bitboard &pinners) const {
   Bitboard blockers = EMPTYBB;
   pinners = 0;
 
@@ -876,6 +872,97 @@ bool Position::isPseudoLegal(Move move) const {
   return true;
 }
 
+// Stockfish SEE function
+bool Position::SEE(Move move, int threshold) const {
+  if (!move.is<NORMAL>())
+    return 0 >= threshold;
+
+  Square from = move.from();
+  Square to = move.to();
+
+  int swap = Eval::pieceValue[pieceTypeOn(to)] - threshold;
+
+  // If capturing enemy piece does not go beyond the threshold, the give up
+  if (swap < 0)
+    return false;
+
+  swap = Eval::pieceValue[pieceTypeOn(from)] - swap;
+  if (swap <= 0)
+    return true;
+
+  Bitboard occ = occupied() ^ from ^ to;
+  Colour stm = _sideToMove;
+  Bitboard attackers = sqAttackedByBB(to, occ);
+  Bitboard stmAttackers, bb;
+  int res = 1;
+
+  while (true) {
+    stm = ~stm;
+
+    attackers &= occ; // Remove pieces that are already captured
+
+    if (!(stmAttackers = attackers & occupied(stm)))
+      break;
+
+    if (pinners(stm) & occ) {
+      stmAttackers &= ~blockersForKing();
+
+      if (!stmAttackers)
+        break;
+    }
+
+    res ^= 1;
+
+    // Locate and remove the next least valuable attacker, and add to
+    // the bitboard 'attackers' any X-ray attackers behind it.
+    if ((bb = stmAttackers & pieces(PAWN))) {
+      if ((swap = Eval::pawnScore.first - swap) < res)
+        break;
+      occ ^= getLSB(bb);
+
+      attackers |= attacksBB<BISHOP>(to, occ) & pieces(BISHOP, QUEEN);
+    }
+
+    else if ((bb = stmAttackers & pieces(KNIGHT))) {
+      if ((swap = Eval::knightScore.first - swap) < res)
+        break;
+      occ ^= getLSB(bb);
+    }
+
+    else if ((bb = stmAttackers & pieces(BISHOP))) {
+      if ((swap = Eval::bishopScore.first - swap) < res)
+        break;
+      occ ^= getLSB(bb);
+
+      attackers |= attacksBB<BISHOP>(to, occ) & pieces(BISHOP, QUEEN);
+    }
+
+    else if ((bb = stmAttackers & pieces(ROOK))) {
+      if ((swap = Eval::rookScore.first - swap) < res)
+        break;
+      occ ^= getLSB(bb);
+
+      attackers |= attacksBB<ROOK>(to, occ) & pieces(ROOK, QUEEN);
+    }
+
+    else if ((bb = stmAttackers & pieces(QUEEN))) {
+      if ((swap = Eval::queenScore.first - swap) < res)
+        break;
+      occ ^= getLSB(bb);
+
+      attackers |= (attacksBB<BISHOP>(to, occ) & pieces(BISHOP, QUEEN)) |
+                   (attacksBB<ROOK>(to, occ) & pieces(ROOK, QUEEN));
+    }
+
+    else // KING
+         // If we "capture" with the king but the opponent still has attackers,
+         // reverse the result.
+      return (attackers & ~occupied(stm)) ? res ^ 1 : res;
+  }
+
+  return bool(res);
+}
+
 // Check if move gives check
 bool Position::givesCheck(Move move) const {
   Square from = move.from();
@@ -887,9 +974,8 @@ bool Position::givesCheck(Move move) const {
   if (attacksBB(pt, to, occupied()) & enemyKing)
     return true;
 
-  Bitboard attackers =
-      attacksBB<BISHOP>(enemyKing, pieces(us, BISHOP, QUEEN)) |
-      attacksBB<ROOK>(enemyKing, pieces(us, ROOK, QUEEN));
+  Bitboard attackers = attacksBB<BISHOP>(enemyKing, pieces(us, BISHOP, QUEEN)) |
+                       attacksBB<ROOK>(enemyKing, pieces(us, ROOK, QUEEN));
 
   attackers &= lineBB[enemyKing][from];
 

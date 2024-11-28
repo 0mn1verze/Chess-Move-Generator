@@ -20,10 +20,9 @@ Key pieceSquareKeys[PIECE_N][SQ_N]{};
 Key enPassantKeys[FILE_N]{};
 Key castlingKeys[CASTLING_N]{};
 Key sideKey{};
-} // namespace Zobrist
 
 // Initialize zobrist keys
-void initZobrist() {
+void init() {
   // Initialize piece square keys
   for (Piece pce : {wP, wN, wB, wR, wQ, wK, bP, bN, bB, bR, bR, bQ, bK})
     for (Square sq = A1; sq <= H8; ++sq)
@@ -40,5 +39,7 @@ void initZobrist() {
   // Initialize side key
   Zobrist::sideKey = PRNG::getRandom<Key>();
 }
+
+} // namespace Zobrist
 
 } // namespace Maestro

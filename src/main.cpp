@@ -8,13 +8,12 @@
 #include "perft.hpp"
 #include "position.hpp"
 
-
 using namespace Maestro;
 
 int main() {
 
   initBitboards();
-  initZobrist();
+  Zobrist::init();
 
   Position pos;
   BoardState st{};

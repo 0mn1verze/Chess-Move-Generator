@@ -22,8 +22,7 @@ template <PieceType pt> void checkBySlider(const Position &pos, Square king) {
 
   // Blockers (could be pieces on both sides that could be blocking an attack to
   // the king, or pieces attacking the king)
-  Bitboard blockers =
-      attacksBB<pt>(king, pos.occupied()) & pos.occupied();
+  Bitboard blockers = attacksBB<pt>(king, pos.occupied()) & pos.occupied();
   // If there are no blockers, there will not be any attackers or pins
   if (!blockers)
     return;
@@ -44,14 +43,13 @@ template <PieceType pt> void checkBySlider(const Position &pos, Square king) {
   }
 
   // Pieces that pins pieces to the king
-  Bitboard pins =
-      attacksBB<pt>(king, pos.occupied() ^ (blockers & ~enemyPieces));
+  Bitboard pinners =
+      attacksBB<pt>(king, pos.occupied() ^ (blockers & ~enemyPieces)) &
+      enemyPieces;
 
   // If there are no pins, there is not reason to update;
-  if (!pins)
+  if (!pinners)
     return;
-  // Pinner pieces = pins & enemyPieces
-  Bitboard pinners = pins & enemyPieces;
 
   // If there are pinners, update the pinners and pinned bitboards
   if (pinners) {

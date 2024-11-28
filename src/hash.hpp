@@ -19,10 +19,12 @@ extern Key pieceSquareKeys[PIECE_N][SQ_N];
 extern Key enPassantKeys[FILE_N];
 extern Key castlingKeys[CASTLING_N];
 extern Key sideKey;
+
+void init();
+
 } // namespace Zobrist
 
 // Init zobrist hashing
-void initZobrist();
 
 } // namespace Maestro
 

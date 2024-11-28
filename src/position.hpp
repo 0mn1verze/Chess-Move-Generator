@@ -106,6 +106,10 @@ public:
   Key pawnKey() const;
   Score psq() const;
   int gamePhase() const;
+  template <Colour us> Bitboard pinners() const;
+  Bitboard pinners(Colour us) const;
+  template <Colour us> Bitboard pinned() const;
+  Bitboard pinned(Colour us) const;
 
   // Position getters
   int gamePlies() const;
@@ -160,8 +164,10 @@ public:
   Bitboard sqAttackedByBB(Square sq, Bitboard occupied) const;
   bool isPseudoLegal(Move move) const;
   bool isLegal(Move move) const;
-  Bitboard pinners() const;
   Bitboard blockersForKing() const;
+
+  // SEE function
+  bool SEE(Move move, int threshold) const;
 
   // Gives check
   bool givesCheck(Move move) const;
@@ -201,6 +207,22 @@ private:
 |            Template functions            |
 |==========================================|
 \******************************************/
+
+// Get the pinners of a colour
+template <Colour us> Bitboard Position::pinners() const {
+  return st->pinners[us];
+}
+
+// Get the pinners of a colour
+inline Bitboard Position::pinners(Colour us) const { return st->pinners[us]; }
+
+// Get the pinned pieces of a colour
+template <Colour us> Bitboard Position::pinned() const {
+  return st->pinned[us];
+}
+
+// Get the pinned pieces of a colour
+inline Bitboard Position::pinned(Colour us) const { return st->pinned[us]; }
 
 // Get square of a piece type
 template <PieceType pt> Square Position::square(Colour us) const {

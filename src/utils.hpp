@@ -121,6 +121,9 @@ constexpr Value statBonus(int depth) {
   return depth > 13 ? 32 : 16 * depth * depth + 128 * std::max(depth - 1, 0);
 }
 
+// Calculate score w.r.t. side to move
+constexpr Score absScore(Colour c, Score s) { return c == WHITE ? s : -s; }
+
 /******************************************\
 |==========================================|
 |              Board Helpers               |
@@ -204,7 +207,7 @@ inline std::string move2Str(const Move &m) {
 inline char piece2Char(Piece pce) { return pieceToChar.at(pce); }
 
 // Convert string to lower case
-inline std::string to_lower(std::string str) {
+inline std::string toLower(std::string str) {
   std::transform(str.begin(), str.end(), str.begin(),
                  [](unsigned char c) { return std::tolower(c); });
   return str;

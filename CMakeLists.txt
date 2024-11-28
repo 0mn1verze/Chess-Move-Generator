@@ -9,6 +9,7 @@ set(SOURCES src/bitboard.cpp
             src/movegen.cpp
             src/perft.cpp
             src/hash.cpp
+            src/eval.cpp
             src/main.cpp)
 set(HEADERS src/defs.hpp
             src/move.hpp
@@ -16,6 +17,7 @@ set(HEADERS src/defs.hpp
             src/utils.hpp
             src/position.hpp
             src/movegen.hpp
+            src/eval.hpp
             src/hash.hpp
             src/perft.hpp)
 
